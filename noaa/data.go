@@ -3,30 +3,34 @@ package noaa
 import (
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"net/url"
 	"os"
 	"path/filepath"
 )
 
-const (
-	baseUrl = "https://www.ncei.noaa.gov/pub/data/ghcn/daily/"
-	dataDir = "data"
-)
+const baseUrl = "https://www.ncei.noaa.gov/pub/data/ghcn/daily/"
 
-func OpenDataFile(path string) (*os.File, error) {
-	fpath := filepath.Join(dataDir, path)
+var cacheDir string
 
-	_, err := os.Stat(fpath)
-	if err == nil {
-		//log.Println("Cached", path)
-	} else if os.IsNotExist(err) {
-		//log.Println("Downloading", path)
-		err = downloadDataFile(path)
+func init() {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		log.Fatalln(err)
 	}
 
-	if err != nil {
-		return nil, err
+	cacheDir = filepath.Join(home, ".cache", "weather")
+}
+
+func openDataFile(path string) (*os.File, error) {
+	fpath := filepath.Join(cacheDir, path)
+
+	if _, err := os.Stat(fpath); os.IsNotExist(err) {
+		err = downloadDataFile(path)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return os.Open(fpath)
@@ -49,7 +53,7 @@ func downloadDataFile(path string) error {
 		return fmt.Errorf("unexpected status: %d", resp.StatusCode)
 	}
 
-	fpath := filepath.Join(dataDir, path)
+	fpath := filepath.Join(cacheDir, path)
 
 	dir := filepath.Dir(fpath)
 	err = os.MkdirAll(dir, 0755)

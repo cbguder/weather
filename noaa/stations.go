@@ -20,7 +20,18 @@ type Station struct {
 	WMO   string
 }
 
-func ReadStations(r io.Reader) ([]Station, error) {
+func Stations() ([]Station, error) {
+	stationsFile, err := openDataFile("ghcnd-stations.txt")
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	defer stationsFile.Close()
+
+	return readStations(stationsFile)
+}
+
+func readStations(r io.Reader) ([]Station, error) {
 	scanner := bufio.NewScanner(r)
 
 	var stations []Station

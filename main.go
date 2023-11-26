@@ -1,7 +1,6 @@
 package main
 
 import (
-	"compress/gzip"
 	"fmt"
 	"log"
 	"os"
@@ -17,9 +16,7 @@ import (
 	"github.com/cbguder/weather/osm"
 )
 
-const (
-	radius = 10.0
-)
+const radius = 10.0
 
 type stationWithDistance struct {
 	Station  noaa.Station
@@ -27,13 +24,17 @@ type stationWithDistance struct {
 }
 
 func main() {
-	stations := readAllStations()
-
 	if len(os.Args) < 2 {
 		log.Fatalln("Please provide a search query")
 	}
 
 	loc := locationForQuery(os.Args[1])
+
+	stations, err := noaa.Stations()
+	if err != nil {
+		log.Fatalln(err)
+	}
+
 	nearby := getNearbyStations(stations, loc, radius)
 	sort.Slice(nearby, func(i, j int) bool {
 		return nearby[i].Distance < nearby[j].Distance
@@ -48,7 +49,11 @@ func main() {
 	})
 
 	for _, sd := range nearby {
-		records := readRecordsForStation(sd.Station.Id)
+		records, err := noaa.RecordsForStation(sd.Station.Id)
+		if err != nil {
+			log.Fatalln(err)
+		}
+
 		numRecords, stationScore := model.Score(records)
 
 		if numRecords == 0 {
@@ -89,47 +94,6 @@ func getNearbyStations(stations []noaa.Station, p geo.Coordinates, radius float6
 	}
 
 	return nearby
-}
-
-func readAllStations() []noaa.Station {
-	stationsFile, err := noaa.OpenDataFile("ghcnd-stations.txt")
-	if err != nil {
-		log.Fatalln(err)
-	}
-
-	defer stationsFile.Close()
-
-	stations, err := noaa.ReadStations(stationsFile)
-	if err != nil {
-		log.Fatalln(err)
-	}
-
-	return stations
-}
-
-func readRecordsForStation(stationId string) []noaa.DailyRecord {
-	path := fmt.Sprintf("by_station/%s.csv.gz", stationId)
-
-	recordsFile, err := noaa.OpenDataFile(path)
-	if err != nil {
-		log.Fatalln(err)
-	}
-
-	defer recordsFile.Close()
-
-	gz, err := gzip.NewReader(recordsFile)
-	if err != nil {
-		log.Fatalln(err)
-	}
-
-	defer gz.Close()
-
-	records, err := noaa.ReadDailyRecords(gz)
-	if err != nil {
-		log.Fatalln(err)
-	}
-
-	return records
 }
 
 func locationForQuery(query string) geo.Coordinates {

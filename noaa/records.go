@@ -1,7 +1,9 @@
 package noaa
 
 import (
+	"compress/gzip"
 	"encoding/csv"
+	"fmt"
 	"io"
 	"log"
 	"strconv"
@@ -19,7 +21,27 @@ type DailyRecord struct {
 	ObsTime   string
 }
 
-func ReadDailyRecords(r io.Reader) ([]DailyRecord, error) {
+func RecordsForStation(stationId string) ([]DailyRecord, error) {
+	path := fmt.Sprintf("by_station/%s.csv.gz", stationId)
+
+	recordsFile, err := openDataFile(path)
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	defer recordsFile.Close()
+
+	gz, err := gzip.NewReader(recordsFile)
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	defer gz.Close()
+
+	return readDailyRecords(gz)
+}
+
+func readDailyRecords(r io.Reader) ([]DailyRecord, error) {
 	var records []DailyRecord
 
 	cr := csv.NewReader(r)
