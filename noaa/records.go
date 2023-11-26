@@ -21,7 +21,7 @@ type DailyRecord struct {
 	ObsTime   string
 }
 
-func RecordsForStation(stationId string) ([]DailyRecord, error) {
+func RecordsForStation(stationId string, startDate, endDate *time.Time) ([]DailyRecord, error) {
 	path := fmt.Sprintf("by_station/%s.csv.gz", stationId)
 
 	recordsFile, err := openDataFile(path)
@@ -38,10 +38,10 @@ func RecordsForStation(stationId string) ([]DailyRecord, error) {
 
 	defer gz.Close()
 
-	return readDailyRecords(gz)
+	return readDailyRecords(gz, startDate, endDate)
 }
 
-func readDailyRecords(r io.Reader) ([]DailyRecord, error) {
+func readDailyRecords(r io.Reader, startDate, endDate *time.Time) ([]DailyRecord, error) {
 	var records []DailyRecord
 
 	cr := csv.NewReader(r)
@@ -53,9 +53,19 @@ func readDailyRecords(r io.Reader) ([]DailyRecord, error) {
 			return nil, err
 		}
 
+		date := parseDate(rec[1])
+
+		if startDate != nil && startDate.After(date) {
+			continue
+		}
+
+		if endDate != nil && endDate.Before(date) {
+			continue
+		}
+
 		record := DailyRecord{
 			StationId: rec[0],
-			Date:      parseDate(rec[1]),
+			Date:      date,
 			Element:   rec[2],
 			Value:     parseInt(rec[3]),
 			MFlag:     rec[4],

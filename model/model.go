@@ -9,7 +9,6 @@ import (
 const (
 	tminF = 50
 	tmaxF = 80
-	years = 10
 )
 
 type dayRecord struct {
@@ -19,18 +18,12 @@ type dayRecord struct {
 }
 
 func Score(records []noaa.DailyRecord) (int, float32) {
-	startDate := time.Now().AddDate(-years, 0, 0)
-
 	numRecords := 0
 	goodDays := 0
 
 	dayRecords := make(map[time.Time]dayRecord)
 
 	for _, record := range records {
-		if record.Date.Before(startDate) {
-			continue
-		}
-
 		if _, ok := dayRecords[record.Date]; !ok {
 			dayRecords[record.Date] = dayRecord{
 				Tmin: -9999,
