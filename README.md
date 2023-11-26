@@ -5,7 +5,7 @@ What's the "perfect weather" score for your location?
 ## Example
 
 ```
-$ weather "Oakland, CA"
+$ weather nearby "Oakland, CA"
 Oakland, Alameda County, California, United States
 ╭─────────────┬──────────────────────────┬───────────┬──────────┬─────────┬───────╮
 │ ID          │ Name                     │ Elevation │ Distance │ Records │ Score │
