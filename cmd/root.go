@@ -2,9 +2,13 @@ package cmd
 
 import (
 	"errors"
+	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/spf13/cobra"
+
+	"github.com/cbguder/weather/noaa"
 )
 
 var (
@@ -21,20 +25,14 @@ var rootCmd = &cobra.Command{
 func init() {
 	rootCmd.PersistentFlags().String("after", "", "only use records after this date")
 	rootCmd.PersistentFlags().String("before", "", "only use records before this date")
+	rootCmd.PersistentFlags().String("cache", "", "cache directory (default ~/.cache/weather)")
 }
 
 func rootPreRunE(cmd *cobra.Command, _ []string) error {
-	var err error
+	noaa.CacheDir = getCacheDir(cmd)
 
-	afterDate, err = parseDateFlag(cmd, "after")
-	if err != nil {
-		return err
-	}
-
-	beforeDate, err = parseDateFlag(cmd, "before")
-	if err != nil {
-		return err
-	}
+	afterDate = parseDateFlag(cmd, "after")
+	beforeDate = parseDateFlag(cmd, "before")
 
 	if afterDate != nil && beforeDate != nil && beforeDate.Before(*afterDate) {
 		return errors.New("before date must be after after date")
@@ -43,14 +41,27 @@ func rootPreRunE(cmd *cobra.Command, _ []string) error {
 	return nil
 }
 
-func parseDateFlag(cmd *cobra.Command, name string) (*time.Time, error) {
+func parseDateFlag(cmd *cobra.Command, name string) *time.Time {
 	date, _ := cmd.Flags().GetString(name)
 	if date == "" {
-		return nil, nil
+		return nil
 	}
 
 	t, err := time.Parse(time.DateOnly, date)
-	return &t, err
+	cobra.CheckErr(err)
+	return &t
+}
+
+func getCacheDir(cmd *cobra.Command) string {
+	cacheDir, _ := cmd.Flags().GetString("cache")
+	if cacheDir != "" {
+		return cacheDir
+	}
+
+	home, err := os.UserHomeDir()
+	cobra.CheckErr(err)
+
+	return filepath.Join(home, ".cache", "weather")
 }
 
 func Execute() error {

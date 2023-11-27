@@ -3,7 +3,6 @@ package noaa
 import (
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"net/url"
 	"os"
@@ -12,19 +11,10 @@ import (
 
 const baseUrl = "https://www.ncei.noaa.gov/pub/data/ghcn/daily/"
 
-var cacheDir string
-
-func init() {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		log.Fatalln(err)
-	}
-
-	cacheDir = filepath.Join(home, ".cache", "weather")
-}
+var CacheDir string
 
 func openDataFile(path string) (*os.File, error) {
-	fpath := filepath.Join(cacheDir, path)
+	fpath := filepath.Join(CacheDir, path)
 
 	if _, err := os.Stat(fpath); os.IsNotExist(err) {
 		err = downloadDataFile(path)
@@ -53,7 +43,7 @@ func downloadDataFile(path string) error {
 		return fmt.Errorf("unexpected status: %d", resp.StatusCode)
 	}
 
-	fpath := filepath.Join(cacheDir, path)
+	fpath := filepath.Join(CacheDir, path)
 
 	dir := filepath.Dir(fpath)
 	err = os.MkdirAll(dir, 0755)
