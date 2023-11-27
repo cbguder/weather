@@ -6,7 +6,6 @@ import (
 	"strconv"
 
 	"github.com/jedib0t/go-pretty/v6/table"
-	"github.com/jedib0t/go-pretty/v6/text"
 	"github.com/spf13/cobra"
 
 	"github.com/cbguder/weather/geo"
@@ -54,9 +53,9 @@ func nearbyE(cmd *cobra.Command, args []string) error {
 	t := newTableWriter()
 	t.AppendHeader(table.Row{"ID", "Name", "Elevation", "Distance", "Records", "Score"})
 	t.SetColumnConfigs([]table.ColumnConfig{
-		{Number: 3, Transformer: text.NewNumberTransformer("%.2fm")},
-		{Number: 4, Transformer: text.NewNumberTransformer("%.2fmi")},
-		{Number: 6, Transformer: text.NewNumberTransformer("%.2f")},
+		{Number: 3, Transformer: sprintfTransformer("%.2fm")},
+		{Number: 4, Transformer: sprintfTransformer("%.2fmi")},
+		{Number: 6, Transformer: scoreTransformer},
 	})
 
 	for _, sd := range nearby {
