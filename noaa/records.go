@@ -46,6 +46,16 @@ type ElementRecord struct {
 	ObsTime string
 }
 
+func PreloadRecordsForStations(stationIds []string) error {
+	paths := make([]string, len(stationIds))
+
+	for i, stationId := range stationIds {
+		paths[i] = fmt.Sprintf("by_station/%s.csv.gz", stationId)
+	}
+
+	return preloadDataFiles(paths)
+}
+
 func RecordsForStation(stationId string, startDate, endDate *time.Time) ([]DailyRecord, error) {
 	path := fmt.Sprintf("by_station/%s.csv.gz", stationId)
 

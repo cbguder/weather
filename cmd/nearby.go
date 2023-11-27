@@ -50,6 +50,16 @@ func nearbyE(cmd *cobra.Command, args []string) error {
 		return nearby[i].Distance < nearby[j].Distance
 	})
 
+	stationIds := make([]string, len(nearby))
+	for i, sd := range nearby {
+		stationIds[i] = sd.Station.Id
+	}
+
+	err = noaa.PreloadRecordsForStations(stationIds)
+	if err != nil {
+		return err
+	}
+
 	t := newTableWriter()
 	t.AppendHeader(table.Row{"ID", "Name", "Elevation", "Distance", "Records", "Score"})
 	t.SetColumnConfigs([]table.ColumnConfig{
