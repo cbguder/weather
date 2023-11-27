@@ -12,8 +12,8 @@ import (
 )
 
 var (
-	afterDate  *time.Time
-	beforeDate *time.Time
+	startDate *time.Time
+	endDate   *time.Time
 )
 
 var rootCmd = &cobra.Command{
@@ -31,11 +31,11 @@ func init() {
 func rootPreRunE(cmd *cobra.Command, _ []string) error {
 	noaa.CacheDir = getCacheDir(cmd)
 
-	afterDate = parseDateFlag(cmd, "after")
-	beforeDate = parseDateFlag(cmd, "before")
+	startDate = parseDateFlag(cmd, "after")
+	endDate = parseDateFlag(cmd, "before")
 
-	if afterDate != nil && beforeDate != nil && beforeDate.Before(*afterDate) {
-		return errors.New("before date must be after after date")
+	if startDate != nil && endDate != nil && startDate.After(*endDate) {
+		return errors.New("start date must be before end date")
 	}
 
 	return nil
