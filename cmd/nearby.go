@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"fmt"
-	"log"
 	"sort"
 	"strconv"
 
@@ -35,7 +34,10 @@ func init() {
 }
 
 func nearbyE(cmd *cobra.Command, args []string) error {
-	loc := locationForQuery(args[0])
+	loc, err := locationForQuery(args[0])
+	if err != nil {
+		return err
+	}
 
 	stations, err := noaa.Stations()
 	if err != nil {
@@ -97,27 +99,30 @@ func getNearbyStations(stations []noaa.Station, p geo.Coordinates, radius float6
 	return nearby
 }
 
-func locationForQuery(query string) geo.Coordinates {
+func locationForQuery(query string) (geo.Coordinates, error) {
 	places, err := osm.Search(query)
 	if err != nil {
-		log.Fatalln(err)
+		return geo.Coordinates{}, err
 	}
 
 	if len(places) == 0 {
-		log.Fatalln("No results found")
+		return geo.Coordinates{}, fmt.Errorf("no locations found")
 	}
 
 	fmt.Println(places[0].DisplayName)
 
 	lat, err := strconv.ParseFloat(places[0].Lat, 64)
 	if err != nil {
-		log.Fatalln(err)
+		return geo.Coordinates{}, err
 	}
 
 	lng, err := strconv.ParseFloat(places[0].Lon, 64)
 	if err != nil {
-		log.Fatalln(err)
+		return geo.Coordinates{}, err
 	}
 
-	return geo.Coordinates{lat, lng}
+	return geo.Coordinates{
+		Lat: lat,
+		Lon: lng,
+	}, nil
 }

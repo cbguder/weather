@@ -3,7 +3,6 @@ package noaa
 import (
 	"bufio"
 	"io"
-	"log"
 	"strconv"
 	"strings"
 )
@@ -23,7 +22,7 @@ type Station struct {
 func Stations() ([]Station, error) {
 	stationsFile, err := openDataFile("ghcnd-stations.txt")
 	if err != nil {
-		log.Fatalln(err)
+		return nil, err
 	}
 
 	defer stationsFile.Close()
@@ -39,11 +38,26 @@ func readStations(r io.Reader) ([]Station, error) {
 	for scanner.Scan() {
 		line := scanner.Text()
 
+		lat, err := parseFloat(line[12:20])
+		if err != nil {
+			return nil, err
+		}
+
+		lon, err := parseFloat(line[21:30])
+		if err != nil {
+			return nil, err
+		}
+
+		elev, err := parseFloat(line[31:37])
+		if err != nil {
+			return nil, err
+		}
+
 		station := Station{
 			Id:    parseString(line[0:11]),
-			Lat:   parseFloat(line[12:20]),
-			Lon:   parseFloat(line[21:30]),
-			Elev:  parseFloat(line[31:37]),
+			Lat:   lat,
+			Lon:   lon,
+			Elev:  elev,
 			State: parseString(line[38:40]),
 			Name:  parseString(line[41:71]),
 			GSN:   parseString(line[72:75]),
@@ -61,10 +75,6 @@ func parseString(s string) string {
 	return strings.TrimSpace(s)
 }
 
-func parseFloat(s string) float64 {
-	f, err := strconv.ParseFloat(strings.TrimSpace(s), 64)
-	if err != nil {
-		log.Fatalln(err)
-	}
-	return f
+func parseFloat(s string) (float64, error) {
+	return strconv.ParseFloat(strings.TrimSpace(s), 64)
 }
