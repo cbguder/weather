@@ -63,9 +63,9 @@ func nearbyE(cmd *cobra.Command, args []string) error {
 			return err
 		}
 
-		numRecords, stationScore := model.Score(records)
+		scorecard := model.Score(records)
 
-		if numRecords == 0 {
+		if scorecard.Records == 0 {
 			continue
 		}
 
@@ -74,8 +74,8 @@ func nearbyE(cmd *cobra.Command, args []string) error {
 			sd.Station.Name,
 			sd.Station.Elev,
 			sd.Distance,
-			numRecords,
-			stationScore,
+			scorecard.Records,
+			scorecard.Score,
 		})
 	}
 

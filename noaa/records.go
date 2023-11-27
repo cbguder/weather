@@ -5,14 +5,14 @@ import (
 	"encoding/csv"
 	"fmt"
 	"io"
-	"log"
+	"sort"
 	"strconv"
 	"time"
 )
 
-type DailyRecord struct {
+type csvRecord struct {
 	StationId string
-	Date      time.Time
+	Date      string
 	Element   string
 	Value     int
 	MFlag     string
@@ -21,28 +21,58 @@ type DailyRecord struct {
 	ObsTime   string
 }
 
+type DailyRecord struct {
+	StationId string
+	Date      string
+	Elements  []ElementRecord
+}
+
+func (r DailyRecord) Element(element string) (ElementRecord, bool) {
+	for _, e := range r.Elements {
+		if e.Element == element {
+			return e, true
+		}
+	}
+
+	return ElementRecord{}, false
+}
+
+type ElementRecord struct {
+	Element string
+	Value   int
+	MFlag   string
+	QFlag   string
+	SFlag   string
+	ObsTime string
+}
+
 func RecordsForStation(stationId string, startDate, endDate *time.Time) ([]DailyRecord, error) {
 	path := fmt.Sprintf("by_station/%s.csv.gz", stationId)
 
 	recordsFile, err := openDataFile(path)
 	if err != nil {
-		log.Fatalln(err)
+		return nil, err
 	}
 
 	defer recordsFile.Close()
 
 	gz, err := gzip.NewReader(recordsFile)
 	if err != nil {
-		log.Fatalln(err)
+		return nil, err
 	}
 
 	defer gz.Close()
 
-	return readDailyRecords(gz, startDate, endDate)
+	records, err := readCsvRecords(gz, startDate, endDate)
+	if err != nil {
+		return nil, err
+	}
+
+	return groupDailyRecords(records), nil
 }
 
-func readDailyRecords(r io.Reader, startDate, endDate *time.Time) ([]DailyRecord, error) {
-	var records []DailyRecord
+func readCsvRecords(r io.Reader, startDate, endDate *time.Time) ([]csvRecord, error) {
+	var records []csvRecord
 
 	cr := csv.NewReader(r)
 	for {
@@ -53,7 +83,19 @@ func readDailyRecords(r io.Reader, startDate, endDate *time.Time) ([]DailyRecord
 			return nil, err
 		}
 
-		date := parseDate(rec[1])
+		value, err := strconv.Atoi(rec[3])
+		if err != nil {
+			return nil, err
+		}
+
+		if value == -9999 {
+			continue
+		}
+
+		date, err := time.Parse("20060102", rec[1])
+		if err != nil {
+			return nil, err
+		}
 
 		if startDate != nil && startDate.After(date) {
 			continue
@@ -63,11 +105,11 @@ func readDailyRecords(r io.Reader, startDate, endDate *time.Time) ([]DailyRecord
 			continue
 		}
 
-		record := DailyRecord{
+		record := csvRecord{
 			StationId: rec[0],
-			Date:      date,
+			Date:      rec[1],
 			Element:   rec[2],
-			Value:     parseInt(rec[3]),
+			Value:     value,
 			MFlag:     rec[4],
 			QFlag:     rec[5],
 			SFlag:     rec[6],
@@ -77,21 +119,45 @@ func readDailyRecords(r io.Reader, startDate, endDate *time.Time) ([]DailyRecord
 		records = append(records, record)
 	}
 
+	sort.Slice(records, func(i, j int) bool {
+		if records[i].Date == records[j].Date {
+			return records[i].Element < records[j].Element
+		}
+
+		return records[i].Date < records[j].Date
+	})
+
 	return records, nil
 }
 
-func parseInt(s string) int {
-	i, err := strconv.Atoi(s)
-	if err != nil {
-		log.Fatalln(err)
-	}
-	return i
-}
+func groupDailyRecords(rawRecords []csvRecord) []DailyRecord {
+	var records []DailyRecord
 
-func parseDate(s string) time.Time {
-	t, err := time.Parse("20060102", s)
-	if err != nil {
-		log.Fatalln(err)
+	for _, raw := range rawRecords {
+		var rec DailyRecord
+
+		if len(records) == 0 || records[len(records)-1].Date != raw.Date {
+			rec = DailyRecord{
+				StationId: raw.StationId,
+				Date:      raw.Date,
+			}
+
+			records = append(records, rec)
+		} else {
+			rec = records[len(records)-1]
+		}
+
+		rec.Elements = append(rec.Elements, ElementRecord{
+			Element: raw.Element,
+			Value:   raw.Value,
+			MFlag:   raw.MFlag,
+			QFlag:   raw.QFlag,
+			SFlag:   raw.SFlag,
+			ObsTime: raw.ObsTime,
+		})
+
+		records[len(records)-1] = rec
 	}
-	return t
+
+	return records
 }
