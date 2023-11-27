@@ -2,6 +2,26 @@
 
 What's the "perfect weather" score for your location?
 
+## Usage
+
+```
+Usage:
+  weather [command]
+
+Available Commands:
+  completion  Generate the autocompletion script for the specified shell
+  help        Help about any command
+  nearby      Show score for nearby weather stations
+
+Flags:
+      --after string    only use records after this date
+      --before string   only use records before this date
+      --cache string    cache directory (default ~/.cache/weather)
+  -h, --help            help for weather
+
+Use "weather [command] --help" for more information about a command.
+```
+
 ## Example
 
 ```
