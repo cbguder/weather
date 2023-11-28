@@ -5,17 +5,18 @@ import (
 )
 
 const (
-	tminF = 50
-	tmaxF = 80
+	minTempF = 45
+	maxTempF = 85
+	maxPrcp  = 10
 )
 
 var (
-	tminC int
-	tmaxC int
+	minTempC int
+	maxTempC int
 )
 
 func init() {
-	tminC, tmaxC = f2c(tminF), f2c(tmaxF)
+	minTempC, maxTempC = f2c(minTempF), f2c(maxTempF)
 }
 
 type Scorecard struct {
@@ -56,6 +57,12 @@ func f2c(f int) int {
 	return int(c * 10)
 }
 
+// Convert Celsius (tenths of a degree) to Fahrenheit
+func c2f(c int) int {
+	f := float32(c)/10*1.8 + 32
+	return int(f)
+}
+
 func isValidDay(record noaa.DailyRecord) bool {
 	if _, ok := record.Element("TMIN"); !ok {
 		return false
@@ -73,11 +80,15 @@ func isGoodDay(record noaa.DailyRecord) bool {
 	tmax, _ := record.Element("TMAX")
 	prcp, _ := record.Element("PRCP")
 
-	if tmin.Value < tminC || tmax.Value > tmaxC {
+	if tmin.Value < minTempC {
 		return false
 	}
 
-	if prcp.Value > 0 {
+	if tmax.Value > maxTempC {
+		return false
+	}
+
+	if prcp.Value > maxPrcp {
 		return false
 	}
 
