@@ -1,8 +1,7 @@
 package cmd
 
 import (
-	"strconv"
-	"strings"
+	"sort"
 	"time"
 
 	"github.com/jedib0t/go-pretty/v6/table"
@@ -32,49 +31,92 @@ func trendsE(_ *cobra.Command, args []string) error {
 		return err
 	}
 
-	groupedRecords := groupRecordsByKey(records, func(record noaa.DailyRecord) string {
-		date, _ := time.Parse("20060102", record.Date)
-		return date.Format("2006/01")
-	})
+	groups := make(map[string][]noaa.DailyRecord)
+	years := make(map[string]struct{})
 
-	var columnConfigs []table.ColumnConfig
+	for _, record := range records {
+		date, err := time.Parse("20060102", record.Date)
+		if err != nil {
+			return err
+		}
+
+		year := date.Format("2006")
+		years[year] = struct{}{}
+
+		keys := []string{
+			year,
+			date.Format("Jan"),
+			date.Format("2006/Jan"),
+		}
+
+		for _, key := range keys {
+			groups[key] = append(groups[key], record)
+		}
+	}
+
+	sortedYears := make([]string, 0, len(years))
+	for year := range years {
+		sortedYears = append(sortedYears, year)
+	}
+	sort.Strings(sortedYears)
+
 	header := table.Row{"Year"}
-	for i, month := range monthNames {
+	for _, month := range monthNames {
 		header = append(header, month)
-
-		columnConfigs = append(columnConfigs, table.ColumnConfig{
-			Number:      i + 2,
-			Transformer: scoreTransformer,
-			AlignHeader: text.AlignRight,
-		})
 	}
 
 	t := newTableWriter()
 	t.AppendHeader(header)
-	t.SetColumnConfigs(columnConfigs)
 
-	row := table.Row{""}
-	for _, group := range groupedRecords {
-		parts := strings.Split(group.key, "/")
-		year := parts[0]
-		month, _ := strconv.Atoi(parts[1])
-
-		if row[0] != year {
-			if len(row) > 1 {
-				t.AppendRow(row)
-			}
-
-			row = table.Row{year, "", "", "", "", "", "", "", "", "", "", "", ""}
-		}
-
-		scorecard := model.Score(group.records)
-		if scorecard.Records > 0 {
-			row[month] = scorecard.Score
+	columnConfigs := make([]table.ColumnConfig, 13)
+	for i := 0; i < 13; i++ {
+		columnConfigs[i] = table.ColumnConfig{
+			Number:      i + 2,
+			Transformer: scoreTransformer,
+			AlignHeader: text.AlignRight,
+			Align:       text.AlignRight,
 		}
 	}
+	t.SetColumnConfigs(columnConfigs)
+
+	for _, year := range sortedYears {
+		row := table.Row{year}
+
+		for _, month := range monthNames {
+			key := year + "/" + month
+			row = append(row, cellValue(groups[key]))
+		}
+
+		row = append(row, cellValue(groups[year]))
+		t.AppendRow(row)
+	}
+
+	t.AppendSeparator()
+
+	row := table.Row{""}
+	for _, month := range monthNames {
+		row = append(row, cellValue(groups[month]))
+	}
+
+	row = append(row, cellValue(records))
 
 	t.AppendRow(row)
+
 	t.Render()
 
 	return nil
+}
+
+func cellValue(records []noaa.DailyRecord) any {
+	if len(records) == 0 {
+		return ""
+	}
+
+	scorecard := model.Score(records)
+
+	if scorecard.Records > 0 {
+		return scorecard.Score
+	} else {
+		return ""
+	}
 }
