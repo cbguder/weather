@@ -26,9 +26,11 @@ func init() {
 	rootCmd.PersistentFlags().String("after", "", "only use records after this date")
 	rootCmd.PersistentFlags().String("before", "", "only use records before this date")
 	rootCmd.PersistentFlags().String("cache", "", "cache directory (default ~/.cache/weather)")
+	rootCmd.PersistentFlags().Bool("ignore-cache", false, "ignore cached data")
 }
 
 func rootPreRunE(cmd *cobra.Command, _ []string) error {
+	noaa.IgnoreCache, _ = cmd.Flags().GetBool("ignore-cache")
 	noaa.CacheDir = getCacheDir(cmd)
 
 	startDate = parseDateFlag(cmd, "after")

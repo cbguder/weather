@@ -17,7 +17,10 @@ const (
 	numWorkers = 8
 )
 
-var CacheDir string
+var (
+	CacheDir    string
+	IgnoreCache bool
+)
 
 func openDataFile(path string) (*os.File, error) {
 	err := preloadDataFiles([]string{path})
@@ -29,6 +32,10 @@ func openDataFile(path string) (*os.File, error) {
 }
 
 func isFileCached(path string) bool {
+	if IgnoreCache {
+		return false
+	}
+
 	fpath := cachePath(path)
 
 	if _, err := os.Stat(fpath); os.IsNotExist(err) {

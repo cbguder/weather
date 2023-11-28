@@ -19,6 +19,7 @@ Flags:
       --before string   only use records before this date
       --cache string    cache directory (default ~/.cache/weather)
   -h, --help            help for weather
+      --ignore-cache    ignore cached data
 
 Use "weather [command] --help" for more information about a command.
 ```
