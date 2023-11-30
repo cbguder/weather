@@ -99,7 +99,8 @@ func getNearbyStations(stations []noaa.Station, p geo.Coordinates, radius float6
 	var nearby []stationWithDistance
 
 	for _, station := range stations {
-		d := geo.Distance(p, geo.Coordinates{station.Lat, station.Lon})
+		coords := geo.Coordinates{Lat: station.Lat, Lon: station.Lon}
+		d := geo.Distance(p, coords)
 		if d < radius {
 			nearby = append(nearby, stationWithDistance{station, d})
 		}
