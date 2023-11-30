@@ -33,7 +33,16 @@ func init() {
 }
 
 func nearbyE(cmd *cobra.Command, args []string) error {
-	loc, err := locationForQuery(args[0])
+	places, err := osm.Search(args[0])
+	if err != nil {
+		return err
+	}
+
+	if len(places) == 0 {
+		return fmt.Errorf("no locations found")
+	}
+
+	loc, err := locationForPlace(places[0])
 	if err != nil {
 		return err
 	}
@@ -61,6 +70,7 @@ func nearbyE(cmd *cobra.Command, args []string) error {
 	}
 
 	t := newTableWriter()
+	t.SetTitle("Stations near %s", places[0].DisplayName)
 	t.AppendHeader(table.Row{"ID", "Name", "Elevation", "Distance", "Records", "Score"})
 	t.SetColumnConfigs([]table.ColumnConfig{
 		{Number: 3, Transformer: sprintfTransformer("%.2fm")},
@@ -109,24 +119,13 @@ func getNearbyStations(stations []noaa.Station, p geo.Coordinates, radius float6
 	return nearby
 }
 
-func locationForQuery(query string) (geo.Coordinates, error) {
-	places, err := osm.Search(query)
+func locationForPlace(place osm.Place) (geo.Coordinates, error) {
+	lat, err := strconv.ParseFloat(place.Lat, 64)
 	if err != nil {
 		return geo.Coordinates{}, err
 	}
 
-	if len(places) == 0 {
-		return geo.Coordinates{}, fmt.Errorf("no locations found")
-	}
-
-	fmt.Println(places[0].DisplayName)
-
-	lat, err := strconv.ParseFloat(places[0].Lat, 64)
-	if err != nil {
-		return geo.Coordinates{}, err
-	}
-
-	lng, err := strconv.ParseFloat(places[0].Lon, 64)
+	lng, err := strconv.ParseFloat(place.Lon, 64)
 	if err != nil {
 		return geo.Coordinates{}, err
 	}

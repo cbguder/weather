@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"errors"
 	"sort"
 
 	"github.com/jedib0t/go-pretty/v6/table"
@@ -25,7 +26,26 @@ func init() {
 }
 
 func trendsE(_ *cobra.Command, args []string) error {
-	records, err := noaa.RecordsForStation(args[0], startDate, endDate)
+	stations, err := noaa.Stations()
+	if err != nil {
+		return err
+	}
+
+	stationId := args[0]
+
+	var station *noaa.Station
+	for _, s := range stations {
+		if s.Id == stationId {
+			station = &s
+			break
+		}
+	}
+
+	if station == nil {
+		return errors.New("station not found")
+	}
+
+	records, err := noaa.RecordsForStation(station.Id, startDate, endDate)
 	if err != nil {
 		return err
 	}
@@ -47,6 +67,7 @@ func trendsE(_ *cobra.Command, args []string) error {
 	}
 
 	t := newTableWriter()
+	t.SetTitle("Historic Trends for %s", station.Name)
 	t.AppendHeader(header)
 
 	columnConfigs := make([]table.ColumnConfig, 13)
