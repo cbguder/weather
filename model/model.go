@@ -57,12 +57,6 @@ func f2c(f int) int {
 	return int(c * 10)
 }
 
-// Convert Celsius (tenths of a degree) to Fahrenheit
-func c2f(c int) int {
-	f := float32(c)/10*1.8 + 32
-	return int(f)
-}
-
 func isValidDay(record noaa.DailyRecord) bool {
 	if _, ok := record.Element("TMIN"); !ok {
 		return false
