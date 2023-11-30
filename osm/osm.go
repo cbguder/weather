@@ -27,7 +27,6 @@ func Search(query string) ([]Place, error) {
 	q := url.Values{}
 	q.Set("q", query)
 	q.Set("format", "jsonv2")
-	q.Set("countrycodes", "us")
 
 	loc := "https://nominatim.openstreetmap.org/search?" + q.Encode()
 
