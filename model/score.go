@@ -1,8 +1,6 @@
 package model
 
 import (
-	"time"
-
 	"github.com/cbguder/weather/noaa"
 )
 
@@ -34,7 +32,7 @@ type groupKey struct {
 }
 
 func Score(records []noaa.DailyRecord) Scorecard {
-	m := basicModel{}
+	m := &basicModel{}
 
 	for _, record := range records {
 		m.Add(record)
@@ -47,16 +45,13 @@ func Trends(records []noaa.DailyRecord) (*TrendsReport, error) {
 	groups := make(map[groupKey]*basicModel)
 
 	for _, record := range records {
-		date, err := time.Parse("20060102", record.Date)
-		if err != nil {
-			return nil, err
-		}
+		d := record.Date
 
 		keys := []groupKey{
 			{typ: keyTypeOverall},
-			{typ: keyTypeMonthly, key: date.Format("2006/Jan")},
-			{typ: keyTypeYearlyAvg, key: date.Format("2006")},
-			{typ: keyTypeMonthlyAvg, key: date.Format("Jan")},
+			{typ: keyTypeMonthly, key: d.Format("2006/Jan")},
+			{typ: keyTypeYearlyAvg, key: d.Format("2006")},
+			{typ: keyTypeMonthlyAvg, key: d.Format("Jan")},
 		}
 
 		for _, key := range keys {

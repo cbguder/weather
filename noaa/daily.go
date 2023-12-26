@@ -10,55 +10,37 @@ import (
 	"time"
 )
 
-type csvRecord struct {
+type dailyCsvRecord struct {
 	StationId string
-	Date      string
+	Date      time.Time
 	Element   string
 	Value     int
-	MFlag     string
-	QFlag     string
-	SFlag     string
-	ObsTime   string
 }
 
 type DailyRecord struct {
-	StationId string
-	Date      string
-	Elements  []ElementRecord
-}
-
-func (r DailyRecord) Element(element string) (ElementRecord, bool) {
-	for _, e := range r.Elements {
-		if e.Element == element {
-			return e, true
-		}
-	}
-
-	return ElementRecord{}, false
+	StationId     string
+	Date          time.Time
+	Elements      map[string]ElementRecord
+	HourlyRecords []HourlyRecord
 }
 
 type ElementRecord struct {
 	Element string
 	Value   int
-	MFlag   string
-	QFlag   string
-	SFlag   string
-	ObsTime string
 }
 
-func PreloadRecordsForStations(stationIds []string) error {
+func PreloadDailyRecords(stationIds []string) error {
 	paths := make([]string, len(stationIds))
 
 	for i, stationId := range stationIds {
-		paths[i] = fmt.Sprintf("by_station/%s.csv.gz", stationId)
+		paths[i] = dailyDataPath(stationId)
 	}
 
 	return preloadDataFiles(paths)
 }
 
-func RecordsForStation(stationId string, startDate, endDate *time.Time) ([]DailyRecord, error) {
-	path := fmt.Sprintf("by_station/%s.csv.gz", stationId)
-
+func DailyRecords(stationId string, startDate, endDate *time.Time) ([]DailyRecord, error) {
+	path := dailyDataPath(stationId)
 	recordsFile, err := openDataFile(path)
 	if err != nil {
 		return nil, err
@@ -73,7 +55,7 @@ func RecordsForStation(stationId string, startDate, endDate *time.Time) ([]Daily
 
 	defer gz.Close()
 
-	records, err := readCsvRecords(gz, startDate, endDate)
+	records, err := readDailyCsvRecords(gz, startDate, endDate)
 	if err != nil {
 		return nil, err
 	}
@@ -81,8 +63,12 @@ func RecordsForStation(stationId string, startDate, endDate *time.Time) ([]Daily
 	return groupDailyRecords(records), nil
 }
 
-func readCsvRecords(r io.Reader, startDate, endDate *time.Time) ([]csvRecord, error) {
-	var records []csvRecord
+func dailyDataPath(stationId string) string {
+	return fmt.Sprintf("/pub/data/ghcn/daily/by_station/%s.csv.gz", stationId)
+}
+
+func readDailyCsvRecords(r io.Reader, startDate, endDate *time.Time) ([]dailyCsvRecord, error) {
+	var records []dailyCsvRecord
 
 	cr := csv.NewReader(r)
 	for {
@@ -115,41 +101,42 @@ func readCsvRecords(r io.Reader, startDate, endDate *time.Time) ([]csvRecord, er
 			continue
 		}
 
-		record := csvRecord{
+		record := dailyCsvRecord{
 			StationId: rec[0],
-			Date:      rec[1],
+			Date:      date,
 			Element:   rec[2],
 			Value:     value,
-			MFlag:     rec[4],
-			QFlag:     rec[5],
-			SFlag:     rec[6],
-			ObsTime:   rec[7],
 		}
 
 		records = append(records, record)
 	}
 
 	sort.Slice(records, func(i, j int) bool {
-		if records[i].Date == records[j].Date {
+		cmp := records[i].Date.Compare(records[j].Date)
+
+		if cmp == 0 {
 			return records[i].Element < records[j].Element
 		}
 
-		return records[i].Date < records[j].Date
+		return cmp == -1
 	})
 
 	return records, nil
 }
 
-func groupDailyRecords(rawRecords []csvRecord) []DailyRecord {
+func groupDailyRecords(rawRecords []dailyCsvRecord) []DailyRecord {
 	var records []DailyRecord
 
 	for _, raw := range rawRecords {
-		var rec DailyRecord
+		rec := DailyRecord{
+			Elements: make(map[string]ElementRecord),
+		}
 
-		if len(records) == 0 || records[len(records)-1].Date != raw.Date {
+		if len(records) == 0 || !records[len(records)-1].Date.Equal(raw.Date) {
 			rec = DailyRecord{
 				StationId: raw.StationId,
 				Date:      raw.Date,
+				Elements:  make(map[string]ElementRecord),
 			}
 
 			records = append(records, rec)
@@ -157,14 +144,10 @@ func groupDailyRecords(rawRecords []csvRecord) []DailyRecord {
 			rec = records[len(records)-1]
 		}
 
-		rec.Elements = append(rec.Elements, ElementRecord{
+		rec.Elements[raw.Element] = ElementRecord{
 			Element: raw.Element,
 			Value:   raw.Value,
-			MFlag:   raw.MFlag,
-			QFlag:   raw.QFlag,
-			SFlag:   raw.SFlag,
-			ObsTime: raw.ObsTime,
-		})
+		}
 
 		records[len(records)-1] = rec
 	}

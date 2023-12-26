@@ -1,25 +1,35 @@
 package model
 
-import "github.com/cbguder/weather/noaa"
+import (
+	"github.com/cbguder/weather/noaa"
+)
 
 const (
-	minTempF = 45
-	maxTempF = 85
-	maxPrcp  = 10
+	minDailyTempF = 45
+	maxDailyTempF = 85
+
+	minHourlyTempF = 50
+	maxHourlyTempF = 85
+
+	maxDailyPrcp  = 10
+	maxHourlyPrcp = 2
 )
 
 var (
-	minTempC int
-	maxTempC int
+	minDailyTempC  int
+	maxDailyTempC  int
+	minHourlyTempC int
+	maxHourlyTempC int
 )
 
 func init() {
-	minTempC, maxTempC = f2c(minTempF), f2c(maxTempF)
+	minDailyTempC, maxDailyTempC = f2c(minDailyTempF), f2c(maxDailyTempF)
+	minHourlyTempC, maxHourlyTempC = f2c(minHourlyTempF), f2c(maxHourlyTempF)
 }
 
 type basicModel struct {
-	numRecords uint
-	goodDays   uint
+	validRecords uint
+	goodRecords  uint
 }
 
 func (m *basicModel) Add(record noaa.DailyRecord) {
@@ -27,32 +37,36 @@ func (m *basicModel) Add(record noaa.DailyRecord) {
 		return
 	}
 
-	m.numRecords++
+	m.validRecords++
 
 	if m.isGoodDay(record) {
-		m.goodDays++
+		m.goodRecords++
 	}
 }
 
 func (m *basicModel) Scorecard() Scorecard {
-	if m.numRecords == 0 {
+	if m.validRecords == 0 {
 		return Scorecard{}
 	}
 
-	score := 100.0 * float32(m.goodDays) / float32(m.numRecords)
+	score := 100.0 * float32(m.goodRecords) / float32(m.validRecords)
 
 	return Scorecard{
-		Records: m.numRecords,
+		Records: m.validRecords,
 		Score:   score,
 	}
 }
 
 func (m *basicModel) isValidDay(record noaa.DailyRecord) bool {
-	if _, ok := record.Element("TMIN"); !ok {
+	if len(record.HourlyRecords) > 0 {
+		return true
+	}
+
+	if _, ok := record.Elements["TMIN"]; !ok {
 		return false
 	}
 
-	if _, ok := record.Element("TMAX"); !ok {
+	if _, ok := record.Elements["TMAX"]; !ok {
 		return false
 	}
 
@@ -60,19 +74,68 @@ func (m *basicModel) isValidDay(record noaa.DailyRecord) bool {
 }
 
 func (m *basicModel) isGoodDay(record noaa.DailyRecord) bool {
-	tmin, _ := record.Element("TMIN")
-	tmax, _ := record.Element("TMAX")
-	prcp, _ := record.Element("PRCP")
+	if len(record.HourlyRecords) > 0 {
+		return m.isGoodDayHourly(record.HourlyRecords)
+	}
 
-	if tmin.Value < minTempC {
+	return m.isGoodDayDaily(record)
+}
+
+func (m *basicModel) isGoodDayDaily(record noaa.DailyRecord) bool {
+	tmin, _ := record.Elements["TMIN"]
+	tmax, _ := record.Elements["TMAX"]
+	prcp, _ := record.Elements["PRCP"]
+
+	if tmin.Value < minDailyTempC {
 		return false
 	}
 
-	if tmax.Value > maxTempC {
+	if tmax.Value > maxDailyTempC {
 		return false
 	}
 
-	if prcp.Value > maxPrcp {
+	if prcp.Value > maxDailyPrcp {
+		return false
+	}
+
+	return true
+}
+
+func (m *basicModel) isGoodDayHourly(records []noaa.HourlyRecord) bool {
+	seenHours := make(map[int]struct{})
+	goodRun := 0
+
+	for _, record := range records {
+		hour := record.Time.Hour()
+		if _, ok := seenHours[hour]; ok {
+			continue
+		}
+
+		seenHours[hour] = struct{}{}
+
+		if hour >= 8 && hour <= 19 && m.isGoodHour(record) {
+			goodRun++
+			if goodRun == 6 {
+				return true
+			}
+		} else {
+			goodRun = 0
+		}
+	}
+
+	return false
+}
+
+func (m *basicModel) isGoodHour(record noaa.HourlyRecord) bool {
+	if record.Temp < minHourlyTempC {
+		return false
+	}
+
+	if record.Temp > maxHourlyTempC {
+		return false
+	}
+
+	if record.Prcp > maxHourlyPrcp {
 		return false
 	}
 

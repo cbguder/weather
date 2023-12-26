@@ -12,7 +12,7 @@ import (
 )
 
 const (
-	baseUrl = "https://www.ncei.noaa.gov/pub/data/ghcn/daily/"
+	baseUrl = "https://www.ncei.noaa.gov"
 
 	numWorkers = 8
 )

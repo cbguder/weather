@@ -3,6 +3,7 @@ package cmd
 import (
 	"errors"
 	"sort"
+	"time"
 
 	"github.com/jedib0t/go-pretty/v6/table"
 	"github.com/jedib0t/go-pretty/v6/text"
@@ -22,16 +23,67 @@ var trendsCmd = &cobra.Command{
 }
 
 func init() {
+	trendsCmd.Flags().Bool("hourly", false, "Use hourly data (slower)")
+
 	rootCmd.AddCommand(trendsCmd)
 }
 
-func trendsE(_ *cobra.Command, args []string) error {
-	stations, err := noaa.Stations()
+func trendsE(cmd *cobra.Command, args []string) error {
+	hourly, _ := cmd.Flags().GetBool("hourly")
+	stationId := args[0]
+
+	var (
+		records []noaa.DailyRecord
+		station *noaa.Station
+		err     error
+	)
+
+	if hourly {
+		records, err = hourlyRecords(stationId)
+		station = &noaa.Station{
+			Id:   stationId,
+			Name: stationId,
+		}
+	} else {
+		records, station, err = dailyRecords(stationId)
+	}
+
 	if err != nil {
 		return err
 	}
 
-	stationId := args[0]
+	return renderTrends(records, station)
+}
+
+func hourlyRecords(stationId string) ([]noaa.DailyRecord, error) {
+	if endDate == nil {
+		now := time.Now()
+		endDate = &now
+	}
+
+	if startDate == nil {
+		oneYearAgo := endDate.AddDate(-1, 0, 0)
+		startDate = &oneYearAgo
+	}
+
+	err := noaa.PreloadHourlyRecords(stationId, *startDate, *endDate)
+	if err != nil {
+		return nil, err
+	}
+
+	loc, err := time.LoadLocation("America/New_York")
+	if err != nil {
+		return nil, err
+	}
+
+	return noaa.HourlyRecords(stationId, *startDate, *endDate, loc)
+}
+
+func dailyRecords(stationId string) ([]noaa.DailyRecord, *noaa.Station, error) {
+	stations, err := noaa.Stations()
+	if err != nil {
+		return nil, nil, err
+	}
 
 	var station *noaa.Station
 	for _, s := range stations {
@@ -42,14 +94,18 @@ func trendsE(_ *cobra.Command, args []string) error {
 	}
 
 	if station == nil {
-		return errors.New("station not found")
+		return nil, nil, errors.New("station not found")
 	}
 
-	records, err := noaa.RecordsForStation(station.Id, startDate, endDate)
+	records, err := noaa.DailyRecords(stationId, startDate, endDate)
 	if err != nil {
-		return err
+		return nil, nil, err
 	}
 
+	return records, station, nil
+}
+
+func renderTrends(records []noaa.DailyRecord, station *noaa.Station) error {
 	trends, err := model.Trends(records)
 	if err != nil {
 		return err

@@ -20,7 +20,7 @@ type Station struct {
 }
 
 func Stations() ([]Station, error) {
-	stationsFile, err := openDataFile("ghcnd-stations.txt")
+	stationsFile, err := openDataFile("/pub/data/ghcn/daily/ghcnd-stations.txt")
 	if err != nil {
 		return nil, err
 	}

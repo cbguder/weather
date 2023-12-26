@@ -64,7 +64,7 @@ func nearbyE(cmd *cobra.Command, args []string) error {
 		stationIds[i] = sd.Station.Id
 	}
 
-	err = noaa.PreloadRecordsForStations(stationIds)
+	err = noaa.PreloadDailyRecords(stationIds)
 	if err != nil {
 		return err
 	}
@@ -79,7 +79,7 @@ func nearbyE(cmd *cobra.Command, args []string) error {
 	})
 
 	for _, sd := range nearby {
-		records, err := noaa.RecordsForStation(sd.Station.Id, startDate, endDate)
+		records, err := noaa.DailyRecords(sd.Station.Id, startDate, endDate)
 		if err != nil {
 			return err
 		}
