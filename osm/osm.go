@@ -30,7 +30,14 @@ func Search(query string) ([]Place, error) {
 
 	loc := "https://nominatim.openstreetmap.org/search?" + q.Encode()
 
-	resp, err := http.Get(loc)
+	req, err := http.NewRequest(http.MethodGet, loc, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Set("User-Agent", "weather (https://github.com/cbguder/weather)")
+
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return nil, err
 	}
